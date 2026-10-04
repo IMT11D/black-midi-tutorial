@@ -13,9 +13,9 @@
 2. 修正 docs/SUMMARY.md 的锚点（保留显示文本与缩进）
 3. 规范化 docs/*.md 标题前空行: ## 前空5行, ### 前空3行
    （公式块/代码块内部不处理）
-4. 规范化其他格式: pandoc 遗留公式写法、图片引用路径、裸链接（加尖括号）、
-   单波浪线转义（防删除线）、文件末尾换行
-5. 图片引用检查（仅报告不修改）: 正文引用的 media/xxx 是否存在
+4. 规范化其他格式: pandoc 遗留公式写法、图片引用路径（./ ../ / /docs/ docs/ -> media/）、
+   裸链接（加尖括号）、单波浪线转义（防删除线）、文件末尾换行
+5. 图片引用检查（仅报告不修改）: 正文引用的 media/xxx 是否存在、引用是否以 media/ 开头
 6. 标题编号检查（仅报告不修改）: 全局重复编号、同级编号缺口
 """
 import os
@@ -221,10 +221,12 @@ def fix_content(content):
     if n:
         changes.append(f"math 代码块 {n} 处")
 
-    # 3) 图片引用路径 ./media/、../media/ -> media/
-    norm, n = re.subn(r"\]\((?:\.{1,2}/)+media/", "](media/", norm)
-    if n:
-        changes.append(f"图片路径 {n} 处")
+    # 3) 图片引用路径归一化（./ ../ / /docs/ docs/ -> media/，含 <img src>）
+    path_pat = r"(?:(?:\.{1,2}/)+(?:docs/)?|/(?:docs/)?|docs/)media/"
+    norm, n1 = re.subn(r"\]\(" + path_pat, "](media/", norm)
+    norm, n2 = re.subn(r"(src=[\"'])" + path_pat, r"\1media/", norm)
+    if n1 + n2:
+        changes.append(f"图片路径 {n1 + n2} 处")
 
     # 4) 裸链接修复 + 单波浪线转义（跳过代码围栏）
     out_lines = []
@@ -353,8 +355,9 @@ def main():
 
     # 3. 图片引用检查（仅报告，不修改文件）
     print("=== 图片引用检查 ===")
-    IMG_RE = re.compile(r'!\[[^\]]*\]\(media/([^)\s]+)[^)]*\)|<img[^>]+src=["\']media/([^"\']+)["\']')
+    IMG_ANY_RE = re.compile(r'!\[[^\]]*\]\(([^)\s]+)[^)]*\)|<img[^>]+src=["\']([^"\']+)["\']')
     missing = []
+    nonmedia = []
     for fn in docs_files:
         path = os.path.join(DOCS, fn)
         with open(path, "r", encoding="utf-8") as f:
@@ -367,8 +370,12 @@ def main():
             if in_fence:
                 continue
             ln_clean = re.sub(r"`[^`]*`", "", ln)  # 跳过行内代码
-            for m in IMG_RE.finditer(ln_clean):
-                name = m.group(1) or m.group(2)
+            for m in IMG_ANY_RE.finditer(ln_clean):
+                src = m.group(1) or m.group(2)
+                if not src.startswith("media/"):
+                    nonmedia.append((fn, i, src))
+                    continue
+                name = src[len("media/"):]
                 if not os.path.isfile(os.path.join(DOCS, "media", name)):
                     missing.append((fn, i, name))
     if missing:
@@ -377,6 +384,10 @@ def main():
         print(f"共 {len(missing)} 处图片引用缺失（请检查文件名大小写与是否已上传）")
     else:
         print("所有图片引用均存在 ✓")
+    if nonmedia:
+        for fn, i, src in nonmedia:
+            print(f"  !! {fn}:{i} 非规范图片引用: {src}")
+        print(f"共 {len(nonmedia)} 处非规范图片引用（图片请放入 docs/media/ 并以 media/ 开头引用）")
 
     # 4. 标题编号检查（仅报告，不修改文件）
     print("=== 标题编号检查 ===")

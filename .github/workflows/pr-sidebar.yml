@@ -1,0 +1,42 @@
+name: PR 侧边栏同步
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'docs/**.md'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr-sidebar-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  sync-sidebar:
+    runs-on: ubuntu-latest
+    # 仅处理「目标为 dev 的同仓库分支」PR：
+    # - fork 分支的 GITHUB_TOKEN 无写权限、无法回推
+    # - dev -> main 的发布合并由 main 的 CI 处理，无需在此重复
+    if: github.event.pull_request.base.ref == 'dev' && github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: 检出 PR 分支
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: 重新生成侧边栏
+        run: python3 gen_toc_from_docs.py
+
+      - name: 如有变化则提交并推送回 PR 分支
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/SUMMARY.md
+          if git diff --cached --quiet; then
+            echo "侧边栏无变化"
+          else
+            git commit -m "自动同步侧边栏"
+            git push
+          fi

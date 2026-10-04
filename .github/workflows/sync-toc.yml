@@ -2,7 +2,7 @@ name: 自动版本号、侧边栏与格式
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - 'docs/**.md'
       - 'gen_toc_from_docs.py'
@@ -23,8 +23,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 更新版本号（日期-当日序号）
+      - name: 更新版本号（仅 main，日期-当日序号）
         run: |
+          if [ "${{ github.ref_name }}" != "main" ]; then
+            echo "非 main 分支，跳过版本号更新"
+            exit 0
+          fi
           BEFORE="${{ github.event.before }}"
           AFTER="${{ github.event.after }}"
           if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
@@ -50,7 +54,10 @@ jobs:
           git add docs/ README.md
           if git diff --cached --quiet; then
             echo "无变化，跳过提交"
-          else
+          elif [ "${{ github.ref_name }}" = "main" ]; then
             git commit -m "自动更新版本号并同步侧边栏与格式"
+            git push
+          else
+            git commit -m "自动同步侧边栏与格式"
             git push
           fi

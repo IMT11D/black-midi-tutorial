@@ -11,8 +11,8 @@
    （小写A-Z -> 去HTML标签 -> 去特定标点[保留全角标点] -> 空白转- ->
     合并- -> 数字开头加_ -> 同页重名 -1/-2）
 2. 修正 docs/SUMMARY.md 的锚点（保留显示文本与缩进）
-3. 规范化 docs/*.md 标题前空行: ## 前空5行, ### 前空3行, #### 前空1行
-   （公式块/代码块内部不处理）
+3. 规范化 docs/*.md 标题后的空行: 一节结束后与下个标题之间按「刚结束的那一节」
+   的层级留白（# 9 行 / ## 7 行 / ### 5 行 / #### 3 行），公式块/代码块内部不处理
 4. 规范化其他格式: pandoc 遗留公式写法、图片引用路径（./ ../ / /docs/ docs/ -> media/）、
    裸链接（加尖括号）、单波浪线转义（防删除线）、文件末尾换行
 5. 图片引用检查（仅报告不修改）: 正文引用的 media/xxx 是否存在、引用是否以 media/ 开头
@@ -137,12 +137,17 @@ def fix_sidebar(text):
 
 
 # ---------------------------------------------------------------- 空行规范化
+# 一节结束后与下一个标题之间的空行数：由「刚结束的那一节」的标题层级决定
+GAP_BY_LEVEL = {1: 9, 2: 7, 3: 5, 4: 3}
+
+
 def fix_spacing(content):
     lines, eol = split_keep_eol(content)
     out = []
     in_fence = False
     fence = ""
     changed = 0
+    last_level = None  # 已有标题中最后出现的层级（即当前节的层级）
     for ln in lines:
         mf = re.match(r"^\s*(```+|~~~+)", ln)
         if mf:
@@ -154,21 +159,18 @@ def fix_spacing(content):
             out.append(ln)
             continue
         if not in_fence:
-            desired = None
-            if re.match(r"^## ", ln):
-                desired = 5
-            elif re.match(r"^### ", ln):
-                desired = 3
-            elif re.match(r"^#### ", ln):
-                desired = 1
-            if desired is not None:
-                old_n = 0
-                while out and out[-1] == "" and old_n < 50:
-                    out.pop()
-                    old_n += 1
-                if old_n != desired:
-                    changed += 1
-                out.extend([""] * desired)
+            hm = re.match(r"^(#{1,4}) ", ln)
+            if hm:
+                desired = GAP_BY_LEVEL.get(last_level)
+                if desired is not None:
+                    old_n = 0
+                    while out and out[-1] == "" and old_n < 50:
+                        out.pop()
+                        old_n += 1
+                    if old_n != desired:
+                        changed += 1
+                    out.extend([""] * desired)
+                last_level = len(hm.group(1))
         out.append(ln)
     return eol.join(out), changed
 
@@ -345,7 +347,7 @@ def main():
         f for f in os.listdir(DOCS)
         if f.endswith(".md") and f != "SUMMARY.md"
     )
-    print("=== 正文格式规范化（标题空行: ## 前5行 / ### 前3行 / #### 前1行；公式、图片路径等） ===")
+    print("=== 正文格式规范化（标题空行: 一节结束留 9/7/5/3 行（#/##/###/####）；公式、图片路径等） ===")
     for fn in docs_files:
         path = os.path.join(DOCS, fn)
         with open(path, "r", encoding="utf-8", newline="") as f:

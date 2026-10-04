@@ -357,10 +357,57 @@ npx docsify-cli serve .
 ## 七、版本与发布
 
 - 版本号格式为「年-月-日-当日序号」（如 `26-10-04-01`）：每次合并/推送到 `main` 时由 CI 自动更新（同日递增序号，跨日从 01 重置），写入 `docs/00-前言.md` 与 README，无需手动维护；`dev` 分支不更新版本号；
-- **合并流程**：常规内容是 `dev` → `main`；`main` 上改动过脚本/工作流后，可把 `main` 合并回 `dev`，保持两边基础设施同步；
+- **合并流程**：见「八、维护组操作」（常规 `dev` → `main`，基础设施需 `main` → `dev` 回同步）；
 - **发布 Release**（维护组操作）：在仓库 Actions 页运行「标记 Release 版本」工作流，当前版本会被追加 `-REL` 后缀（如 `26-10-04-01-REL`），表示一个可对外分发的正式版本；
 - 标记 Release 时工作流会依次自动完成：格式与图片路径收尾 → 图片按位置转正命名（见「三、4. 图片」）→ 追加 `-REL` 后缀 → 提交推送；
 - 注意：**不要在正文里手动改 `-REL`**——这样产生的改动会被 CI 的自动版本更新覆盖，请一律走上面的工作流；
 - 标记 Release 后：导出 PDF 成品，连同版本号与更新说明发布到群文件 / 网盘等渠道（GitHub Releases 可选）；
-- Release 之后的正常合并会在此基础上继续递增版本号（同日序号 +1，跨日从 01 重置），无需手动处理；
-- 感谢所有为本教程做出贡献的创作者。
+- Release 之后的正常合并会在此基础上继续递增版本号（同日序号 +1，跨日从 01 重置），无需手动处理。
+
+## 八、维护组操作（管理员）
+
+以下操作需要仓库管理员权限，普通贡献者无需阅读。分工约定（见「2.」）请转告给贡献者。
+
+### 1. 添加协作者（Write 权限）
+
+1. 打开仓库 → **Settings** → 左侧 **Access → Collaborators and teams**（直达：<https://github.com/IMT11D/black-midi-tutorial/settings/access>）；
+2. 点 **Add people**，输入对方的 GitHub 用户名并选中；
+3. 权限角色选 **Write**（可推分支、开 PR，不能改仓库设置），不要给 Admin；
+4. 对方收到邀请并接受后才生效；页面出现的 **Copy invite link** 可直接发给对方（比等邮件快）。
+
+> 注意：如果以后给 `main` 开启分支保护（Require PR），必须把 Actions（github-actions）加入 bypass 名单，否则 CI 的自动版本号、图片转正等直推会被拦下并失败。
+
+### 2. 分工约定（转告贡献者）
+
+- 有写权限的协作者：**直接推送到 `dev`**（也可基于 `dev` 新建分支再发 PR）；
+- 其他贡献者：**PR 的目标分支选 `dev`**；
+- `main` 由维护者合并，网站与版本号以 `main` 为准。
+
+### 3. 把 dev 合并进 main
+
+- 推荐在网页对 `dev` → `main` 开 Pull Request，确认改动后合并；也可本地执行：
+
+  ```bash
+  git checkout main
+  git merge dev
+  git push
+  ```
+
+- 合并后 CI 会自动更新版本号、重建侧边栏并校正格式，随后部署网站；
+- 若 `SUMMARY.md` 出现冲突：任取一边，运行 `python gen_toc_from_docs.py` 重新生成即可（它是生成物）。
+
+### 4. 基础设施同步（main → dev）
+
+- 在 `main` 上改过脚本或工作流（如 `fix_toc_and_spacing.py`、`.github/workflows/`）后，把 `main` 合并回 `dev`：
+
+  ```bash
+  git checkout dev
+  git merge main
+  git push
+  ```
+
+- 否则 `dev` 会缺少最新工具，贡献者本地运行脚本时行为不一致。
+
+---
+
+感谢所有为本教程做出贡献的创作者。

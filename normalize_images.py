@@ -26,6 +26,7 @@ DOCS = os.path.join(ROOT, "docs")
 MEDIA = os.path.join(DOCS, "media")
 APPLY = "--apply" in sys.argv
 
+# 图片位置命名跟踪到三级（#### 等更深层级的内容归属于所属小节）
 HEAD_RE = re.compile(r"^(#{1,3})\s+(.+?)\s*$")
 CHAPTER_NUM_RE = re.compile(r"^(\d+)")
 SECTION_NUM_RE = re.compile(r"^(\d+)\.(\d+)")

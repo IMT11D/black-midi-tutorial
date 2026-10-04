@@ -11,12 +11,12 @@
    （小写A-Z -> 去HTML标签 -> 去特定标点[保留全角标点] -> 空白转- ->
     合并- -> 数字开头加_ -> 同页重名 -1/-2）
 2. 修正 docs/SUMMARY.md 的锚点（保留显示文本与缩进）
-3. 规范化 docs/*.md 标题前空行: ## 前空5行, ### 前空3行
+3. 规范化 docs/*.md 标题前空行: ## 前空5行, ### 前空3行, #### 前空1行
    （公式块/代码块内部不处理）
 4. 规范化其他格式: pandoc 遗留公式写法、图片引用路径（./ ../ / /docs/ docs/ -> media/）、
    裸链接（加尖括号）、单波浪线转义（防删除线）、文件末尾换行
 5. 图片引用检查（仅报告不修改）: 正文引用的 media/xxx 是否存在、引用是否以 media/ 开头
-6. 标题编号检查（仅报告不修改）: 全局重复编号、同级编号缺口
+6. 标题编号检查（仅报告不修改）: 全局重复编号、同级编号缺口（一~四级）
 """
 import os
 import re
@@ -44,9 +44,9 @@ def docsify_slug(text):
     return s
 
 
-def extract_headings(lines):
-    """提取 h1-h3 标题原文（跳过 ``` / ~~~ 代码围栏内部）"""
-    pat = re.compile(r"^(#{1,3}) (.+?)\s*$")
+def extract_headings(lines, max_level=3):
+    """提取 h1-h{max_level} 标题原文（跳过 ``` / ~~~ 代码围栏内部），默认三级（侧边栏范围）"""
+    pat = re.compile(rf"^(#{{1,{max_level}}}) (.+?)\s*$")
     out = []
     in_fence = False
     fence = ""
@@ -159,6 +159,8 @@ def fix_spacing(content):
                 desired = 5
             elif re.match(r"^### ", ln):
                 desired = 3
+            elif re.match(r"^#### ", ln):
+                desired = 1
             if desired is not None:
                 old_n = 0
                 while out and out[-1] == "" and old_n < 50:
@@ -291,17 +293,24 @@ def check_numbering(per_file):
         chap = int(m.group(1))
         h2 = []
         h3 = {}
+        h4 = {}
         for lv, num in nums:
             parts = num.split(".")
             if lv == 2 and len(parts) == 2 and parts[0] == str(chap):
                 h2.append(int(parts[1]))
             elif lv == 3 and len(parts) == 3:
                 h3.setdefault(".".join(parts[:2]), []).append(int(parts[2]))
+            elif lv == 4 and len(parts) == 4:
+                h4.setdefault(".".join(parts[:3]), []).append(int(parts[3]))
         if h2:
             for i in range(1, max(h2) + 1):
                 if i not in h2:
                     problems.append(f"{fn}: 缺少编号 {chap}.{i}")
         for parent, ks in h3.items():
+            for i in range(1, max(ks) + 1):
+                if i not in ks:
+                    problems.append(f"{fn}: {parent} 缺少 .{i}")
+        for parent, ks in h4.items():
             for i in range(1, max(ks) + 1):
                 if i not in ks:
                     problems.append(f"{fn}: {parent} 缺少 .{i}")
@@ -336,7 +345,7 @@ def main():
         f for f in os.listdir(DOCS)
         if f.endswith(".md") and f != "SUMMARY.md"
     )
-    print("=== 正文格式规范化（标题空行: ## 前5行 / ### 前3行；公式、图片路径等） ===")
+    print("=== 正文格式规范化（标题空行: ## 前5行 / ### 前3行 / #### 前1行；公式、图片路径等） ===")
     for fn in docs_files:
         path = os.path.join(DOCS, fn)
         with open(path, "r", encoding="utf-8", newline="") as f:
@@ -397,7 +406,7 @@ def main():
         with open(path, "r", encoding="utf-8") as f:
             lines = f.read().split("\n")
         nums = []
-        for lv, text in extract_headings(lines):
+        for lv, text in extract_headings(lines, max_level=4):
             m = NUM_RE.match(text)
             if m:
                 nums.append((lv, m.group(1)))

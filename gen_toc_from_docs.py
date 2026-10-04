@@ -56,6 +56,7 @@ for fname in md_files:
             continue
         if in_fence:
             continue
+        # 侧边栏只收录一~三级标题（#### 及更深层级不进入目录）
         m = re.match(r"^(#{1,3})\s+(.+)$", line.strip())
         if not m:
             continue

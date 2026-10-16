@@ -74,4 +74,4 @@ npx docsify-cli serve .
 
 感谢以下作者为本教程做出的贡献：
 
-IMT11D · benwata · Kerbinator · TheAtomicBomb · RhNO3-lx · 黑乐谱末影君 · 超盐酸钠（CJC）
+IMT11D · benwata · Kerbinator · TheAtomicBomb · RhNO3-lx · 黑乐谱末影君 · 超盐酸钠（CJC） · Teddyxiongtdx
